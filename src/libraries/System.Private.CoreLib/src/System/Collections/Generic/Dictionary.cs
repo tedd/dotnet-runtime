@@ -290,7 +290,13 @@ namespace System.Collections.Generic
                 _count = 0;
                 _freeList = -1;
                 _freeCount = 0;
-                Array.Clear(_entries, 0, count);
+                // Only clear entries to release managed references. The reset buckets and counts hide old entries,
+                // and insertion initializes every field before an entry is reused.
+                // The JIT folds this intrinsic to a constant for Entry, removing the type-test branch.
+                if (RuntimeHelpers.IsReferenceOrContainsReferences<Entry>())
+                {
+                    Array.Clear(_entries, 0, count);
+                }
             }
         }
 

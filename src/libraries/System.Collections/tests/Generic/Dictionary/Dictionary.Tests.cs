@@ -12,6 +12,53 @@ namespace System.Collections.Tests
 {
     public partial class Dictionary_IDictionary_NonGeneric_Tests : IDictionary_NonGeneric_Tests
     {
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(17)]
+        public void Clear_ValueTypes_RefillInitializesValues(int count)
+        {
+            var dictionary = new Dictionary<int, (long, long)>();
+            for (int cycle = 0; cycle < 3; cycle++)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    dictionary.Add(i, (i + 1, i + 2));
+                }
+
+                for (int i = 0; i < count; i += 2)
+                {
+                    dictionary.Remove(i);
+                }
+
+                var enumerator = dictionary.GetEnumerator();
+                int capacity = dictionary.Capacity;
+                dictionary.Clear();
+                Assert.Empty(dictionary);
+                Assert.False(enumerator.MoveNext());
+                Assert.Equal(capacity, dictionary.Capacity);
+                Assert.False(dictionary.ContainsValue((1, 2)));
+
+                for (int i = 0; i < count; i++)
+                {
+                    ref (long, long) value = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(dictionary, i, out bool exists);
+                    Assert.False(exists);
+                    Assert.Equal(default, value);
+                    value = (i + 3, i + 4);
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    Assert.Equal((i + 3L, i + 4L), dictionary[i]);
+                }
+
+                dictionary.TrimExcess();
+                Assert.Equal(count, new Dictionary<int, (long, long)>(dictionary).Count);
+                dictionary.Clear();
+                dictionary.Clear();
+            }
+        }
+
         protected override bool Enumerator_Empty_UsesSingletonInstance => true;
         protected override bool Enumerator_Empty_ModifiedDuringEnumeration_ThrowsInvalidOperationException => false;
 
