@@ -134,6 +134,15 @@ namespace System.Collections.Generic
                 Entry[] oldEntries = source._entries;
                 if (source._comparer == _comparer)
                 {
+                    if (source._freeCount == 0 && source._buckets!.Length == _buckets!.Length)
+                    {
+                        // With no removed entries and the same capacity, all bucket indices and links remain valid.
+                        Array.Copy(oldEntries, _entries, source._count);
+                        Array.Copy(source._buckets, _buckets, _buckets.Length);
+                        _count = source._count;
+                        return;
+                    }
+
                     // If comparers are the same, we can copy _entries without rehashing.
                     CopyEntries(oldEntries, source._count);
                     return;
