@@ -36,6 +36,52 @@ namespace System.Collections.Tests
         #region Constructors
 
         [Theory]
+        [InlineData(0, false, false)]
+        [InlineData(1, false, false)]
+        [InlineData(17, false, false)]
+        [InlineData(100, false, false)]
+        [InlineData(100, true, false)]
+        [InlineData(100, false, true)]
+        [InlineData(100, true, true)]
+        public void Dictionary_Generic_Constructor_CopyThenMutate(int count, bool removeEntries, bool oversized)
+        {
+            IEqualityComparer<TKey> comparer = GetKeyIEqualityComparer();
+            var source = new Dictionary<TKey, TValue>(GenericIDictionaryFactory(count), comparer);
+            if (oversized)
+            {
+                source.EnsureCapacity(count * 4);
+            }
+            KeyValuePair<TKey, TValue>[] original = source.ToArray();
+            if (removeEntries && original.Length > 0)
+            {
+                // Removing one entry keeps the source and copy capacities equal for the non-oversized case.
+                source.Remove(original[original.Length / 2].Key);
+            }
+
+            var copy = new Dictionary<TKey, TValue>(source, comparer);
+            KeyValuePair<TKey, TValue>[] expected = source.ToArray();
+            Assert.Equal(expected, copy.ToArray());
+            foreach (KeyValuePair<TKey, TValue> pair in expected)
+            {
+                Assert.Equal(pair.Value, copy[pair.Key]);
+                Assert.True(copy.Remove(pair.Key));
+            }
+            Assert.Empty(copy);
+            Assert.Equal(expected, source.ToArray());
+            foreach (KeyValuePair<TKey, TValue> pair in expected)
+            {
+                copy.Add(pair.Key, pair.Value);
+            }
+            copy.EnsureCapacity(copy.Capacity + 1);
+            copy.TrimExcess();
+            Assert.Equal(expected.Length, copy.Count);
+            foreach (KeyValuePair<TKey, TValue> pair in expected)
+            {
+                Assert.Equal(pair.Value, copy[pair.Key]);
+            }
+        }
+
+        [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_IDictionary(int count)
         {
