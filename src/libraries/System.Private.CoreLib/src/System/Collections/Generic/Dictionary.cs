@@ -343,6 +343,9 @@ namespace System.Collections.Generic
             }
             else
             {
+                // Object type: Shared Generic, EqualityComparer<TValue>.Default won't devirtualize
+                // https://github.com/dotnet/runtime/issues/10050
+                // So cache in a local rather than get EqualityComparer per loop iteration
                 EqualityComparer<TValue> defaultComparer = EqualityComparer<TValue>.Default;
                 if (firstEntry.next >= -1 && defaultComparer.Equals(firstEntry.value, value))
                 {
