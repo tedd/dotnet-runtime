@@ -299,12 +299,27 @@ namespace System.Collections.Generic
 
         public bool ContainsValue(TValue value)
         {
-            Entry[]? entries = _entries;
+            int count = _count;
+            if (count == 0)
+            {
+                return false;
+            }
+
+            Entry[] entries = _entries!;
+            // A positive count guarantees allocated, nonempty entry storage.
+            Debug.Assert(count > 0 && count <= entries.Length);
+            ref Entry firstEntry = ref MemoryMarshal.GetArrayDataReference(entries);
             if (value == null)
             {
-                for (int i = 0; i < _count; i++)
+                if (firstEntry.next >= -1 && firstEntry.value == null)
                 {
-                    if (entries![i].next >= -1 && entries[i].value == null)
+                    return true;
+                }
+
+                ReadOnlySpan<Entry> remaining = new ReadOnlySpan<Entry>(entries, 1, count - 1);
+                for (int i = 0; i < remaining.Length; i++)
+                {
+                    if (remaining[i].next >= -1 && remaining[i].value == null)
                     {
                         return true;
                     }
@@ -312,10 +327,15 @@ namespace System.Collections.Generic
             }
             else if (typeof(TValue).IsValueType)
             {
-                // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
-                for (int i = 0; i < _count; i++)
+                if (firstEntry.next >= -1 && EqualityComparer<TValue>.Default.Equals(firstEntry.value, value))
                 {
-                    if (entries![i].next >= -1 && EqualityComparer<TValue>.Default.Equals(entries[i].value, value))
+                    return true;
+                }
+
+                ReadOnlySpan<Entry> remaining = new ReadOnlySpan<Entry>(entries, 1, count - 1);
+                for (int i = 0; i < remaining.Length; i++)
+                {
+                    if (remaining[i].next >= -1 && EqualityComparer<TValue>.Default.Equals(remaining[i].value, value))
                     {
                         return true;
                     }
@@ -323,13 +343,16 @@ namespace System.Collections.Generic
             }
             else
             {
-                // Object type: Shared Generic, EqualityComparer<TValue>.Default won't devirtualize
-                // https://github.com/dotnet/runtime/issues/10050
-                // So cache in a local rather than get EqualityComparer per loop iteration
                 EqualityComparer<TValue> defaultComparer = EqualityComparer<TValue>.Default;
-                for (int i = 0; i < _count; i++)
+                if (firstEntry.next >= -1 && defaultComparer.Equals(firstEntry.value, value))
                 {
-                    if (entries![i].next >= -1 && defaultComparer.Equals(entries[i].value, value))
+                    return true;
+                }
+
+                ReadOnlySpan<Entry> remaining = new ReadOnlySpan<Entry>(entries, 1, count - 1);
+                for (int i = 0; i < remaining.Length; i++)
+                {
+                    if (remaining[i].next >= -1 && defaultComparer.Equals(remaining[i].value, value))
                     {
                         return true;
                     }
