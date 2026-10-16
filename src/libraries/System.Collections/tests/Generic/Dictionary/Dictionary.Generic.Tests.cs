@@ -162,6 +162,69 @@ namespace System.Collections.Tests
             Assert.True(dictionary.ContainsValue(default(TValue)));
         }
 
+        [Theory]
+        [MemberData(nameof(ValidCollectionSizes))]
+        public void Dictionary_Generic_ContainsValue_RemovedEntriesAndReuse(int count)
+        {
+            var dictionary = (Dictionary<TKey, TValue>)GenericIDictionaryFactory(count);
+            KeyValuePair<TKey, TValue>[] entries = dictionary.ToArray();
+
+            // Include the first slot among the removed entries.
+            for (int i = 0; i < entries.Length; i += 2)
+            {
+                Assert.True(dictionary.Remove(entries[i].Key));
+            }
+
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                bool expected = dictionary.Any(pair => EqualityComparer<TValue>.Default.Equals(pair.Value, entry.Value));
+                Assert.Equal(expected, dictionary.ContainsValue(entry.Value));
+            }
+
+            for (int i = 0; i < entries.Length; i += 2)
+            {
+                dictionary.Add(entries[i].Key, entries[i].Value);
+            }
+
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                Assert.True(dictionary.ContainsValue(entry.Value));
+                Assert.True(dictionary.Remove(entry.Key));
+            }
+
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                Assert.False(dictionary.ContainsValue(entry.Value));
+            }
+
+            Assert.False(dictionary.ContainsValue(default(TValue)));
+            dictionary.TrimExcess();
+            Assert.False(dictionary.ContainsValue(default(TValue)));
+            dictionary.EnsureCapacity(count * 2 + 1);
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                dictionary.Add(entry.Key, entry.Value);
+            }
+
+            dictionary.TrimExcess();
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                Assert.True(dictionary.ContainsValue(entry.Value));
+            }
+
+            dictionary.Clear();
+            dictionary.TrimExcess(0);
+            foreach (KeyValuePair<TKey, TValue> entry in entries)
+            {
+                Assert.False(dictionary.ContainsValue(entry.Value));
+            }
+            Assert.False(dictionary.ContainsValue(default(TValue)));
+
+            KeyValuePair<TKey, TValue> single = CreateT(4825);
+            dictionary.Add(single.Key, single.Value);
+            Assert.True(dictionary.ContainsValue(single.Value));
+        }
+
         #endregion
 
         #region IReadOnlyDictionary<TKey, TValue>.Keys
