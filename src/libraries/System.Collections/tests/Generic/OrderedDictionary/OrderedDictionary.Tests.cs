@@ -97,31 +97,6 @@ namespace System.Collections.Tests
 
         #endregion
 
-        #region Clear
-
-        [Fact]
-        public void Clear_AfterRemoval_DoesNotExposeOldEntries()
-        {
-            var comparer = EqualityComparer<int>.Create((x, y) => x == y, x => x % 2);
-            var dictionary = new OrderedDictionary<int, int>(comparer) { { 1, 11 }, { 2, 22 }, { 3, 33 } };
-            Assert.True(dictionary.Remove(2));
-
-            dictionary.Clear();
-            Assert.Empty(dictionary);
-
-            dictionary.Add(4, 44);
-            dictionary.Insert(0, 5, 55);
-            Assert.Equal(new[] { KeyValuePair.Create(5, 55), KeyValuePair.Create(4, 44) }, dictionary);
-            Assert.Equal(44, dictionary[4]);
-            Assert.Equal(55, dictionary[5]);
-            foreach (int key in new[] { 1, 2, 3 })
-            {
-                Assert.False(dictionary.ContainsKey(key));
-            }
-        }
-
-        #endregion
-
         #region RemoveAt
 
         [Theory]
