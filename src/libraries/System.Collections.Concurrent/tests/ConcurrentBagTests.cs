@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -306,12 +307,13 @@ namespace System.Collections.Concurrent.Tests
         [InlineData(100)]
         public static void Clear_AfterLocalRemovals_CanRefill(int count)
         {
-            ClearAndRefill<int>(Enumerable.Range(0, count).ToArray());
-            ClearAndRefill<string>(Enumerable.Range(0, count).Select(i => i.ToString()).ToArray());
-            ClearAndRefill<(int, string)>(Enumerable.Range(0, count).Select(i => (i, i.ToString())).ToArray());
+            ClearAndRefill<int>(count, i => i);
+            ClearAndRefill<string>(count, i => i.ToString());
+            ClearAndRefill<(int, string)>(count, i => (i, i.ToString()));
 
-            static void ClearAndRefill<T>(T[] items)
+            static void ClearAndRefill<T>(int count, Func<int, T> create)
             {
+                T[] items = Enumerable.Range(0, count).Select(create).ToArray();
                 var bag = new ConcurrentBag<T>(items);
                 for (int cycle = 0; cycle < 3; cycle++)
                 {
@@ -326,6 +328,7 @@ namespace System.Collections.Concurrent.Tests
                     Assert.False(bag.TryTake(out _));
                     bag.Clear();
 
+                    items = Enumerable.Range((cycle + 1) * count, count).Select(create).ToArray();
                     foreach (T item in items)
                     {
                         bag.Add(item);
@@ -338,6 +341,84 @@ namespace System.Collections.Concurrent.Tests
                     }
                 }
             }
+        }
+
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsPreciseGcSupported))]
+        [InlineData(false)]
+        [InlineData(true)]
+        public static void Clear_ReleasesReferences(bool wrapInStruct)
+        {
+            if (wrapInStruct)
+            {
+                Verify<(int, (object, int))>(value => (1, (value, 2)));
+            }
+            else
+            {
+                Verify<object>(value => value);
+            }
+
+            static void Verify<T>(Func<object, T> create)
+            {
+                var bag = new ConcurrentBag<T>();
+                WeakReference[] references = Enumerable.Range(0, 3).Select(_ => AddReference(bag, create)).ToArray();
+                GC.Collect();
+                Assert.All(references, reference => Assert.True(reference.IsAlive));
+
+                bag.Clear();
+                Assert.Empty(bag);
+                Assert.True(SpinWait.SpinUntil(() =>
+                {
+                    GC.Collect();
+                    return references.All(reference => !reference.IsAlive);
+                }, 30_000));
+                GC.KeepAlive(bag);
+            }
+
+            // Keep the objects out of the caller's stack during the collection check.
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static WeakReference AddReference<T>(ConcurrentBag<T> bag, Func<object, T> create)
+            {
+                object value = new object();
+                bag.Add(create(value));
+                return new WeakReference(value);
+            }
+        }
+
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [InlineData(1)]
+        [InlineData(17)]
+        [InlineData(100)]
+        public static void Clear_AfterStealing_CanRefillWithDifferentValues(int count)
+        {
+            var bag = new ConcurrentBag<int>(Enumerable.Range(0, count));
+            int ownerThreadId = Environment.CurrentManagedThreadId;
+            Task.Factory.StartNew(() =>
+            {
+                Assert.NotEqual(ownerThreadId, Environment.CurrentManagedThreadId);
+                for (int i = 0; i < count / 2; i++)
+                {
+                    Assert.True(bag.TryTake(out _));
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).GetAwaiter().GetResult();
+
+            bag.Clear();
+            Assert.Empty(bag);
+            foreach (int item in Enumerable.Range(count, count))
+            {
+                bag.Add(item);
+            }
+
+            Task.Factory.StartNew(() =>
+            {
+                Assert.NotEqual(ownerThreadId, Environment.CurrentManagedThreadId);
+                var remaining = new HashSet<int>(Enumerable.Range(count, count));
+                while (bag.TryTake(out int item))
+                {
+                    Assert.True(remaining.Remove(item));
+                }
+                Assert.Empty(remaining);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).GetAwaiter().GetResult();
+            Assert.Empty(bag);
         }
 
         [Fact]
