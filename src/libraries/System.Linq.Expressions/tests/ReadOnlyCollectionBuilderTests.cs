@@ -498,6 +498,26 @@ namespace System.Linq.Expressions.Tests
             AssertExtensions.Throws<ArgumentException>("value", () => rocb.Add("foo"));
         }
 
+        [Fact]
+        public void ReadOnlyCollectionBuilder_Clear1()
+        {
+            var rocb = new ReadOnlyCollectionBuilder<int>(new[] { 1, 2, 3 });
+
+            rocb.Clear();
+
+            Assert.Equal(0, rocb.Count);
+        }
+
+        [Fact]
+        public void ReadOnlyCollectionBuilder_Clear2()
+        {
+            var rocb = new ReadOnlyCollectionBuilder<int>();
+
+            rocb.Clear();
+
+            Assert.Equal(0, rocb.Count);
+        }
+
         [Theory]
         [InlineData(0)]
         [InlineData(1)]
@@ -536,26 +556,6 @@ namespace System.Linq.Expressions.Tests
                 Assert.Equal(Enumerable.Reverse(items), builder.ToReadOnlyCollection());
                 Assert.Empty(builder);
             }
-        }
-
-        [Fact]
-        public void ReadOnlyCollectionBuilder_Clear1()
-        {
-            var rocb = new ReadOnlyCollectionBuilder<int>(new[] { 1, 2, 3 });
-
-            rocb.Clear();
-
-            Assert.Equal(0, rocb.Count);
-        }
-
-        [Fact]
-        public void ReadOnlyCollectionBuilder_Clear2()
-        {
-            var rocb = new ReadOnlyCollectionBuilder<int>();
-
-            rocb.Clear();
-
-            Assert.Equal(0, rocb.Count);
         }
 
         [Fact]
