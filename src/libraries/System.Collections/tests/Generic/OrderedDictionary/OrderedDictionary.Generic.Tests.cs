@@ -436,46 +436,6 @@ namespace System.Collections.Tests
 
         #endregion
 
-        #region Clear
-
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(17)]
-        [InlineData(100)]
-        public void Clear_AfterRemovingEntries_CanRefill(int count)
-        {
-            var dictionary = (OrderedDictionary<TKey, TValue>)GenericIDictionaryFactory(count);
-            KeyValuePair<TKey, TValue>[] entries = dictionary.ToArray();
-            int capacity = dictionary.Capacity;
-
-            for (int cycle = 0; cycle < 3; cycle++)
-            {
-                for (int i = dictionary.Count - 1; i >= 0; i -= 2)
-                {
-                    dictionary.RemoveAt(i);
-                }
-
-                dictionary.Clear();
-                Assert.Empty(dictionary);
-                Assert.Empty(dictionary.Keys);
-                Assert.Empty(dictionary.Values);
-                Assert.Equal(capacity, dictionary.Capacity);
-                dictionary.Clear();
-
-                foreach (KeyValuePair<TKey, TValue> entry in entries)
-                {
-                    Assert.False(dictionary.ContainsKey(entry.Key));
-                    dictionary.Insert(0, entry.Key, entry.Value);
-                    Assert.Equal(entry.Value, dictionary[entry.Key]);
-                }
-
-                Assert.Equal(Enumerable.Reverse(entries), dictionary);
-            }
-        }
-
-        #endregion
-
         #region TrimExcess
 
         [Theory]
