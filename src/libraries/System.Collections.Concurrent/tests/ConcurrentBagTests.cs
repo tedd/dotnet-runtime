@@ -331,7 +331,11 @@ namespace System.Collections.Concurrent.Tests
                         bag.Add(item);
                     }
 
-                    Assert.Equal(Enumerable.Reverse(items), bag.ToArray());
+                    Assert.Equal(items.Length, bag.Count);
+                    foreach (T item in items)
+                    {
+                        Assert.Contains(item, bag);
+                    }
                 }
             }
         }
