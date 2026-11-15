@@ -266,6 +266,14 @@ namespace System.Collections.Tests
                     {
                         Assert.Equal(i != removeIndex, references[i].IsAlive);
                     }
+
+                    // The unused last slot must not retain a copy of a remaining entry.
+                    dictionary.Clear();
+                    Assert.True(SpinWait.SpinUntil(() =>
+                    {
+                        GC.Collect();
+                        return references.All(reference => !reference.IsAlive);
+                    }, 30_000));
                 }
                 GC.KeepAlive(dictionary);
             }
