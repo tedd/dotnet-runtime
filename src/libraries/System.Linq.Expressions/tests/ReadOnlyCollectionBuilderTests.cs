@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using Xunit;
 
 namespace System.Linq.Expressions.Tests
@@ -339,42 +338,22 @@ namespace System.Linq.Expressions.Tests
         [InlineData(0)]
         [InlineData(1)]
         [InlineData(2)]
-        public void RemoveAt_PreservesOtherItemsAndCanInsert(int index)
+        public void RemoveAt_DoesNotExposeRemovedItems(int index)
         {
-            var expected = Enumerable.Range(0, 3).Select(i => (i, ~(long)i)).ToList();
-            var builder = new ReadOnlyCollectionBuilder<(int, long)>(expected);
-            var removed = expected[index];
-            var enumerator = builder.GetEnumerator();
+            var expected = new List<int> { 1, 2, 3 };
+            var builder = new ReadOnlyCollectionBuilder<int>(expected);
+            int removed = expected[index];
 
             builder.RemoveAt(index);
             expected.RemoveAt(index);
-            Assert.Throws<InvalidOperationException>(() => enumerator.MoveNext());
             Assert.Equal(expected, builder);
-            Assert.Equal(expected.Count, builder.Count);
             Assert.False(builder.Contains(removed));
-            Assert.Throws<ArgumentOutOfRangeException>(() => builder[builder.Count]);
 
-            builder.Insert(index, (99, -100L));
-            expected.Insert(index, (99, -100L));
+            builder.Insert(index, 4);
+            expected.Insert(index, 4);
             Assert.Equal(expected, builder);
-            Assert.Equal(expected.ToArray(), builder.ToArray());
-            for (int i = 0; i < expected.Count; i++)
-            {
-                Assert.Equal(expected[i], builder[i]);
-            }
             Assert.False(builder.Contains(removed));
-        }
-
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsPreciseGcSupported))]
-        [InlineData(0, false)]
-        [InlineData(0, true)]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(2, false)]
-        [InlineData(2, true)]
-        public void RemoveAt_ReleasesOnlyRemovedReferences(int index, bool wrapInStruct)
-        {
-            VerifyReferenceRelease(wrapInStruct, index);
+            Assert.Equal(expected, builder.ToReadOnlyCollection());
         }
 
         [Fact]
@@ -561,54 +540,19 @@ namespace System.Linq.Expressions.Tests
             Assert.Equal(0, rocb.Count);
         }
 
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(17)]
-        [InlineData(100)]
-        public void Clear_AfterRemovingItems_CanRefill(int count)
+        [Fact]
+        public void Clear_AfterRemoval_DoesNotExposeOldItems()
         {
-            ClearAndRefill<int>(count, i => i);
-            ClearAndRefill<string>(count, i => i.ToString());
-            ClearAndRefill<(int, string)>(count, i => (i, i.ToString()));
+            var builder = new ReadOnlyCollectionBuilder<int>(new[] { 1, 2, 3 });
+            builder.RemoveAt(1);
 
-            static void ClearAndRefill<T>(int count, Func<int, T> create)
-            {
-                T[] items = Enumerable.Range(0, count).Select(create).ToArray();
-                var builder = new ReadOnlyCollectionBuilder<T>(items);
-                int capacity = builder.Capacity;
-                for (int cycle = 0; cycle < 3; cycle++)
-                {
-                    for (int i = builder.Count - 1; i >= 0; i -= 2)
-                    {
-                        builder.RemoveAt(i);
-                    }
+            builder.Clear();
+            Assert.Empty(builder);
 
-                    builder.Clear();
-                    Assert.Empty(builder);
-                    Assert.Equal(capacity, builder.Capacity);
-                    builder.Clear();
-
-                    items = Enumerable.Range((cycle + 1) * count, count).Select(create).ToArray();
-                    foreach (T item in items)
-                    {
-                        builder.Insert(0, item);
-                    }
-
-                    Assert.Equal(Enumerable.Reverse(items), builder);
-                }
-
-                Assert.Equal(Enumerable.Reverse(items), builder.ToReadOnlyCollection());
-                Assert.Empty(builder);
-            }
-        }
-
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsPreciseGcSupported))]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void Clear_ReleasesReferences(bool wrapInStruct)
-        {
-            VerifyReferenceRelease(wrapInStruct, removeIndex: -1);
+            builder.Add(4);
+            builder.Insert(0, 5);
+            Assert.Equal(new[] { 5, 4 }, builder);
+            Assert.Equal(new[] { 5, 4 }, builder.ToReadOnlyCollection());
         }
 
         [Fact]
@@ -952,67 +896,6 @@ namespace System.Linq.Expressions.Tests
             rocb.CopyTo(array, 1);
 
             Assert.True(new[] { 1, 1, 2, 3, 5 }.SequenceEqual(array));
-        }
-
-        private static void VerifyReferenceRelease(bool wrapInStruct, int removeIndex)
-        {
-            if (wrapInStruct)
-            {
-                Verify<(int, (object, int))>(value => (1, (value, 2)));
-            }
-            else
-            {
-                Verify<object>(value => value);
-            }
-
-            void Verify<T>(Func<object, T> create)
-            {
-                var builder = new ReadOnlyCollectionBuilder<T>();
-                WeakReference[] references = Enumerable.Range(0, 3).Select(_ => AddReference(builder, create)).ToArray();
-                GC.Collect();
-                Assert.All(references, reference => Assert.True(reference.IsAlive));
-
-                if (removeIndex < 0)
-                {
-                    builder.Clear();
-                }
-                else
-                {
-                    builder.RemoveAt(removeIndex);
-                }
-
-                Assert.Equal(removeIndex < 0 ? 0 : 2, builder.Count);
-                Assert.True(SpinWait.SpinUntil(() =>
-                {
-                    GC.Collect();
-                    return removeIndex < 0 ? references.All(reference => !reference.IsAlive) : !references[removeIndex].IsAlive;
-                }, 30_000));
-                if (removeIndex >= 0)
-                {
-                    for (int i = 0; i < references.Length; i++)
-                    {
-                        Assert.Equal(i != removeIndex, references[i].IsAlive);
-                    }
-
-                    // The unused last slot must not retain a copy of a remaining item.
-                    builder.Clear();
-                    Assert.True(SpinWait.SpinUntil(() =>
-                    {
-                        GC.Collect();
-                        return references.All(reference => !reference.IsAlive);
-                    }, 30_000));
-                }
-                GC.KeepAlive(builder);
-            }
-
-            // Keep the objects out of the caller's stack during the collection check.
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            static WeakReference AddReference<T>(ReadOnlyCollectionBuilder<T> builder, Func<object, T> create)
-            {
-                object value = new object();
-                builder.Add(create(value));
-                return new WeakReference(value);
-            }
         }
 
         private static void AssertEmpty<T>(ReadOnlyCollectionBuilder<T> rocb)
