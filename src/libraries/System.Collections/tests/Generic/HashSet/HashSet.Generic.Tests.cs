@@ -156,46 +156,6 @@ namespace System.Collections.Tests
 
         #endregion
 
-        #region Clear
-
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(17)]
-        [InlineData(100)]
-        public void Clear_AfterRemovingEntries_CanRefill(int count)
-        {
-            var set = (HashSet<T>)GenericISetFactory(count);
-            T[] items = set.ToArray();
-            int capacity = set.EnsureCapacity(0);
-
-            for (int cycle = 0; cycle < 3; cycle++)
-            {
-                for (int i = 0; i < items.Length; i += 2)
-                {
-                    Assert.True(set.Remove(items[i]));
-                }
-
-                var enumerator = set.GetEnumerator();
-                set.Clear();
-                Assert.Empty(set);
-                Assert.False(enumerator.MoveNext());
-                Assert.Equal(capacity, set.EnsureCapacity(0));
-                set.Clear();
-
-                foreach (T item in items)
-                {
-                    Assert.False(set.Contains(item));
-                    Assert.True(set.Add(item));
-                    Assert.False(set.Add(item));
-                }
-
-                Assert.True(set.SetEquals(items));
-            }
-        }
-
-        #endregion
-
         #region RemoveWhere
 
         [Theory]
@@ -896,6 +856,46 @@ namespace System.Collections.Tests
 
             Assert.InRange(c.EqualsCalls, 1, int.MaxValue);
             Assert.InRange(c.GetHashCodeCalls, 1, int.MaxValue);
+        }
+
+        #endregion
+
+        #region Clear
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(17)]
+        [InlineData(100)]
+        public void Clear_AfterRemovingEntries_CanRefill(int count)
+        {
+            var set = (HashSet<T>)GenericISetFactory(count);
+            T[] items = set.ToArray();
+            int capacity = set.EnsureCapacity(0);
+
+            for (int cycle = 0; cycle < 3; cycle++)
+            {
+                for (int i = 0; i < items.Length; i += 2)
+                {
+                    Assert.True(set.Remove(items[i]));
+                }
+
+                var enumerator = set.GetEnumerator();
+                set.Clear();
+                Assert.Empty(set);
+                Assert.False(enumerator.MoveNext());
+                Assert.Equal(capacity, set.EnsureCapacity(0));
+                set.Clear();
+
+                foreach (T item in items)
+                {
+                    Assert.False(set.Contains(item));
+                    Assert.True(set.Add(item));
+                    Assert.False(set.Add(item));
+                }
+
+                Assert.True(set.SetEquals(items));
+            }
         }
 
         #endregion
