@@ -449,7 +449,7 @@ namespace System.Collections.Tests
                     Assert.Equal(entry.Value, dictionary[entry.Key]);
                 }
 
-                Assert.Equal(entries.Reverse(), dictionary);
+                Assert.Equal(Enumerable.Reverse(entries), dictionary);
             }
         }
 
