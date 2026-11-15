@@ -498,6 +498,46 @@ namespace System.Linq.Expressions.Tests
             AssertExtensions.Throws<ArgumentException>("value", () => rocb.Add("foo"));
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(17)]
+        [InlineData(100)]
+        public void Clear_AfterRemovingItems_CanRefill(int count)
+        {
+            ClearAndRefill<int>(Enumerable.Range(0, count).ToArray());
+            ClearAndRefill<string>(Enumerable.Range(0, count).Select(i => i.ToString()).ToArray());
+            ClearAndRefill<(int, string)>(Enumerable.Range(0, count).Select(i => (i, i.ToString())).ToArray());
+
+            static void ClearAndRefill<T>(T[] items)
+            {
+                var builder = new ReadOnlyCollectionBuilder<T>(items);
+                int capacity = builder.Capacity;
+                for (int cycle = 0; cycle < 3; cycle++)
+                {
+                    for (int i = builder.Count - 1; i >= 0; i -= 2)
+                    {
+                        builder.RemoveAt(i);
+                    }
+
+                    builder.Clear();
+                    Assert.Empty(builder);
+                    Assert.Equal(capacity, builder.Capacity);
+                    builder.Clear();
+
+                    foreach (T item in items)
+                    {
+                        builder.Insert(0, item);
+                    }
+
+                    Assert.Equal(items.Reverse(), builder);
+                }
+
+                Assert.Equal(items.Reverse(), builder.ToReadOnlyCollection());
+                Assert.Empty(builder);
+            }
+        }
+
         [Fact]
         public void ReadOnlyCollectionBuilder_Clear1()
         {
