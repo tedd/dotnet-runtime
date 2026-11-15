@@ -415,6 +415,27 @@ namespace System.Collections.Tests
 
         #endregion
 
+        #region Remove(..., out TValue)
+
+        [Theory]
+        [MemberData(nameof(ValidPositiveCollectionSizes))]
+        public void OrderedDictionary_Generic_Remove(int count)
+        {
+            OrderedDictionary<TKey, TValue> dictionary = (OrderedDictionary<TKey, TValue>)GenericIDictionaryFactory(count);
+
+            KeyValuePair<TKey, TValue> pair = default;
+            while (dictionary.Count > 0)
+            {
+                pair = dictionary.GetAt(0);
+                Assert.True(dictionary.Remove(pair.Key, out TValue value));
+                Assert.Equal(pair.Value, value);
+            }
+
+            Assert.False(dictionary.Remove(pair.Key, out _));
+        }
+
+        #endregion
+
         #region Clear
 
         [Theory]
@@ -451,27 +472,6 @@ namespace System.Collections.Tests
 
                 Assert.Equal(Enumerable.Reverse(entries), dictionary);
             }
-        }
-
-        #endregion
-
-        #region Remove(..., out TValue)
-
-        [Theory]
-        [MemberData(nameof(ValidPositiveCollectionSizes))]
-        public void OrderedDictionary_Generic_Remove(int count)
-        {
-            OrderedDictionary<TKey, TValue> dictionary = (OrderedDictionary<TKey, TValue>)GenericIDictionaryFactory(count);
-
-            KeyValuePair<TKey, TValue> pair = default;
-            while (dictionary.Count > 0)
-            {
-                pair = dictionary.GetAt(0);
-                Assert.True(dictionary.Remove(pair.Key, out TValue value));
-                Assert.Equal(pair.Value, value);
-            }
-
-            Assert.False(dictionary.Remove(pair.Key, out _));
         }
 
         #endregion
