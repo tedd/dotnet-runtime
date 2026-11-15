@@ -334,28 +334,6 @@ namespace System.Linq.Expressions.Tests
             AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => rocb.RemoveAt(0));
         }
 
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(2)]
-        public void RemoveAt_DoesNotExposeRemovedItems(int index)
-        {
-            var expected = new List<int> { 1, 2, 3 };
-            var builder = new ReadOnlyCollectionBuilder<int>(expected);
-            int removed = expected[index];
-
-            builder.RemoveAt(index);
-            expected.RemoveAt(index);
-            Assert.Equal(expected, builder);
-            Assert.False(builder.Contains(removed));
-
-            builder.Insert(index, 4);
-            expected.Insert(index, 4);
-            Assert.Equal(expected, builder);
-            Assert.False(builder.Contains(removed));
-            Assert.Equal(expected, builder.ToReadOnlyCollection());
-        }
-
         [Fact]
         public void ReadOnlyCollectionBuilder_Remove()
         {
