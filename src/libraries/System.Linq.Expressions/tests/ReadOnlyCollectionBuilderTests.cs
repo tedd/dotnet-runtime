@@ -530,10 +530,10 @@ namespace System.Linq.Expressions.Tests
                         builder.Insert(0, item);
                     }
 
-                    Assert.Equal(items.Reverse(), builder);
+                    Assert.Equal(Enumerable.Reverse(items), builder);
                 }
 
-                Assert.Equal(items.Reverse(), builder.ToReadOnlyCollection());
+                Assert.Equal(Enumerable.Reverse(items), builder.ToReadOnlyCollection());
                 Assert.Empty(builder);
             }
         }
