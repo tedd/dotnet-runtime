@@ -331,7 +331,7 @@ namespace System.Collections.Concurrent.Tests
                         bag.Add(item);
                     }
 
-                    Assert.Equal(items.Reverse(), bag.ToArray());
+                    Assert.Equal(Enumerable.Reverse(items), bag.ToArray());
                 }
             }
         }
