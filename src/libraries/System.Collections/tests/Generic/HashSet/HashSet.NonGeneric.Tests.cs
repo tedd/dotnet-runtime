@@ -58,6 +58,8 @@ namespace System.Collections.Tests
                 j++;
             }
         }
+        #region Clear
+
         [Theory]
         [InlineData(0)]
         [InlineData(1)]
@@ -144,5 +146,7 @@ namespace System.Collections.Tests
                 return new WeakReference(value);
             }
         }
+
+        #endregion
     }
 }
