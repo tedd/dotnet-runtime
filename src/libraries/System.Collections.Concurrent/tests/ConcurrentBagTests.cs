@@ -299,6 +299,43 @@ namespace System.Collections.Concurrent.Tests
             }
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(17)]
+        [InlineData(100)]
+        public static void Clear_AfterLocalRemovals_CanRefill(int count)
+        {
+            ClearAndRefill<int>(Enumerable.Range(0, count).ToArray());
+            ClearAndRefill<string>(Enumerable.Range(0, count).Select(i => i.ToString()).ToArray());
+            ClearAndRefill<(int, string)>(Enumerable.Range(0, count).Select(i => (i, i.ToString())).ToArray());
+
+            static void ClearAndRefill<T>(T[] items)
+            {
+                var bag = new ConcurrentBag<T>(items);
+                for (int cycle = 0; cycle < 3; cycle++)
+                {
+                    for (int i = 0; i < items.Length / 2; i++)
+                    {
+                        Assert.True(bag.TryTake(out _));
+                    }
+
+                    bag.Clear();
+                    Assert.Empty(bag);
+                    Assert.False(bag.TryPeek(out _));
+                    Assert.False(bag.TryTake(out _));
+                    bag.Clear();
+
+                    foreach (T item in items)
+                    {
+                        bag.Add(item);
+                    }
+
+                    Assert.Equal(items.Reverse(), bag.ToArray());
+                }
+            }
+        }
+
         [Fact]
         public static void Clear_DuringEnumeration_DoesntAffectEnumeration()
         {
