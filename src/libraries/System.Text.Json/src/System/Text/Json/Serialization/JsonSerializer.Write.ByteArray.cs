@@ -159,6 +159,7 @@ namespace System.Text.Json
                 Utf8JsonWriterCache.ReturnWriterAndBuffer(writer, output);
             }
         }
+
         private static byte[] CopyWrittenBytes(ReadOnlySpan<byte> written)
         {
 #if NET
