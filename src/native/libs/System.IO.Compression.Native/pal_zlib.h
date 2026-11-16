@@ -119,6 +119,9 @@ Returns a PAL_ErrorCode indicating success or an error number on failure.
 */
 FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_InflateInit2_(PAL_ZStream* stream, int32_t windowBits);
 
+// Returns PAL_Z_STREAMEND on completion, PAL_Z_OK on an incomplete decode, or an initialization error.
+FUNCTIONEXPORT int32_t FUNCTIONCALLINGCONVENTION CompressionNative_InflateOnce(PAL_ZStream* stream, int32_t windowBits);
+
 /*
 Inflates (uncompresses) the bytes in the PAL_ZStream's nextIn buffer and puts the
 uncompressed bytes in nextOut.

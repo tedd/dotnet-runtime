@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
+using System.Runtime.InteropServices;
 
 namespace System.IO.Compression
 {
@@ -70,18 +71,37 @@ namespace System.IO.Compression
         /// <param name="destination">When this method returns, a span of bytes where the decompressed data is stored.</param>
         /// <param name="bytesWritten">When this method returns, the total number of bytes that were written to <paramref name="destination"/>.</param>
         /// <returns><see langword="true"/> if the decompression operation was successful; <see langword="false"/> otherwise.</returns>
-        public static bool TryDecompress(ReadOnlySpan<byte> source, Span<byte> destination, out int bytesWritten)
+        public static unsafe bool TryDecompress(ReadOnlySpan<byte> source, Span<byte> destination, out int bytesWritten)
         {
-            using var decoder = new GZipDecoder();
-            OperationStatus status = decoder.Decompress(source, destination, out int consumed, out bytesWritten);
-
-            bool success = status == OperationStatus.Done && consumed == source.Length;
-            if (!success)
+            fixed (byte* input = &MemoryMarshal.GetReference(source))
+            fixed (byte* output = &MemoryMarshal.GetReference(destination))
             {
-                bytesWritten = 0;
-            }
+                ZLibNative.ZStream stream = new()
+                {
+                    nextIn = (IntPtr)input,
+                    availIn = (uint)source.Length,
+                    nextOut = (IntPtr)output,
+                    availOut = (uint)destination.Length,
+                };
+                ZLibNative.ErrorCode result;
+                try
+                {
+                    result = Interop.ZLib.InflateOnce(&stream, ZLibNative.GZip_DefaultWindowBits);
+                }
+                catch (Exception e)
+                {
+                    throw new ZLibException(SR.ZLibErrorDLLLoadError, e);
+                }
 
-            return success;
+                if (result is not (ZLibNative.ErrorCode.Ok or ZLibNative.ErrorCode.StreamEnd))
+                {
+                    ZLibNative.ThrowInitializationError(result, "inflateInit2_", stream.msg);
+                }
+
+                bool success = result == ZLibNative.ErrorCode.StreamEnd && stream.availIn == 0;
+                bytesWritten = success ? destination.Length - (int)stream.availOut : 0;
+                return success;
+            }
         }
     }
 }

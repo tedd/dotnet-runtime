@@ -189,6 +189,35 @@ int32_t CompressionNative_Inflate(PAL_ZStream* stream, int32_t flush)
     return result;
 }
 
+int32_t CompressionNative_InflateOnce(PAL_ZStream* stream, int32_t windowBits)
+{
+    assert(stream != NULL);
+
+    z_stream zStream = {0};
+#ifdef _WIN64
+    zStream.zalloc = z_custom_calloc;
+    zStream.zfree = z_custom_cfree;
+#endif
+
+    int32_t result = inflateInit2(&zStream, windowBits);
+    if (result != Z_OK)
+    {
+        stream->msg = zStream.msg;
+        return result;
+    }
+
+    if (stream->availOut != 0 || stream->availIn == 0)
+    {
+        TransferStateFromPalZStream(stream, &zStream);
+        result = inflate(&zStream, Z_NO_FLUSH);
+        TransferStateToPalZStream(&zStream, stream);
+    }
+    inflateEnd(&zStream);
+
+    // Report initialization errors separately from input or output failures.
+    return result == Z_STREAM_END ? PAL_Z_STREAMEND : PAL_Z_OK;
+}
+
 int32_t CompressionNative_InflateEnd(PAL_ZStream* stream)
 {
     assert(stream != NULL);
