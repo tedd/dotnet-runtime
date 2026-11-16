@@ -135,7 +135,7 @@ namespace System.Text.Json
             try
             {
                 jsonTypeInfo.Serialize(writer, value);
-                return output.WrittenSpan.ToArray();
+                return CopyWrittenBytes(output.WrittenSpan);
             }
             finally
             {
@@ -152,12 +152,26 @@ namespace System.Text.Json
             try
             {
                 jsonTypeInfo.SerializeAsObject(writer, value);
-                return output.WrittenSpan.ToArray();
+                return CopyWrittenBytes(output.WrittenSpan);
             }
             finally
             {
                 Utf8JsonWriterCache.ReturnWriterAndBuffer(writer, output);
             }
+        }
+
+        private static byte[] CopyWrittenBytes(ReadOnlySpan<byte> written)
+        {
+#if NET
+            if (written.Length >= 128 * 1024)
+            {
+                // The copy initializes every byte before the array is returned.
+                byte[] result = GC.AllocateUninitializedArray<byte>(written.Length);
+                written.CopyTo(result);
+                return result;
+            }
+#endif
+            return written.ToArray();
         }
     }
 }
