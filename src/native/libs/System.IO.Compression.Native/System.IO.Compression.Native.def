@@ -22,6 +22,7 @@ EXPORTS
     CompressionNative_Inflate
     CompressionNative_InflateEnd
     CompressionNative_InflateInit2_
+    CompressionNative_InflateOnce
     CompressionNative_InflateReset2_
     CompressionNative_CompressBound
     ZSTD_createCCtx

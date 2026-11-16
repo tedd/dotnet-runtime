@@ -9,9 +9,8 @@ namespace System.IO.Compression
     {
         /// <summary>
         /// ZLib stream descriptor data structure
-        /// Do not construct instances of <see cref="ZStream" /> explicitly.
-        /// Always use <see cref="ZLibNative.ZLibStreamHandle.CreateForDeflate" /> or <see cref="ZLibNative.ZLibStreamHandle.CreateForInflate" /> instead.
-        /// Those methods will wrap this structure into a <see cref="ZLibStreamHandle" /> and thus make sure that it is always disposed correctly.
+        /// Use <see cref="ZLibNative.ZLibStreamHandle.CreateForDeflate" /> or <see cref="ZLibNative.ZLibStreamHandle.CreateForInflate" />
+        /// when native state must survive across calls. The handle releases that state on disposal.
         /// </summary>
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
         internal unsafe struct ZStream

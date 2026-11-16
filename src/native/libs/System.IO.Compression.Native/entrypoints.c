@@ -42,6 +42,7 @@ static const Entry s_compressionNative[] =
     DllImportEntry(CompressionNative_Inflate)
     DllImportEntry(CompressionNative_InflateEnd)
     DllImportEntry(CompressionNative_InflateInit2_)
+    DllImportEntry(CompressionNative_InflateOnce)
     DllImportEntry(CompressionNative_InflateReset2_)
     DllImportEntry(CompressionNative_CompressBound)
 #if !defined(TARGET_BROWSER)

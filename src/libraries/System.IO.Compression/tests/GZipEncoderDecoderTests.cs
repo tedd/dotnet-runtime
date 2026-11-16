@@ -8,6 +8,23 @@ namespace System.IO.Compression
 {
     public class GZipEncoderDecoderTests : ZLibEncoderDecoderTestBase
     {
+        [Fact]
+        public void TryDecompress_WithTrailingData_ReturnsFalse()
+        {
+            ReadOnlySpan<byte> input = "GZip payload"u8;
+            Span<byte> compressed = stackalloc byte[128];
+            Span<byte> output = stackalloc byte[input.Length];
+            Assert.True(GZipEncoder.TryCompress(input, compressed, out int compressedLength));
+
+            Assert.True(GZipDecoder.TryDecompress(compressed[..compressedLength], output, out int bytesWritten));
+            Assert.Equal(input.Length, bytesWritten);
+            Assert.True(input.SequenceEqual(output));
+
+            compressed[compressedLength] = 0xff;
+            Assert.False(GZipDecoder.TryDecompress(compressed[..(compressedLength + 1)], output, out bytesWritten));
+            Assert.Equal(0, bytesWritten);
+        }
+
         public class GZipEncoderAdapter : EncoderAdapter
         {
             private readonly GZipEncoder _encoder;

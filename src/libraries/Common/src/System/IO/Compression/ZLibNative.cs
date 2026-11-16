@@ -158,6 +158,19 @@ namespace System.IO.Compression
         public const byte GZip_Header_ID1 = 31;
         public const byte GZip_Header_ID2 = 139;
 
+        internal static unsafe void ThrowInitializationError(ErrorCode errorCode, string context, byte* message)
+        {
+            string exceptionMessage = errorCode switch
+            {
+                ErrorCode.MemError => SR.ZLibErrorNotEnoughMemory,
+                ErrorCode.VersionError => SR.ZLibErrorVersionMismatch,
+                ErrorCode.StreamError => SR.ZLibErrorIncorrectInitParameters,
+                _ => SR.Format(SR.ZLibErrorUnexpected, (int)errorCode)
+            };
+
+            throw new ZLibException(exceptionMessage, context, (int)errorCode, Utf8StringMarshaller.ConvertToManaged(message) ?? string.Empty);
+        }
+
         public sealed class ZLibStreamHandle : SafeHandle
         {
             public enum State
@@ -264,28 +277,13 @@ namespace System.IO.Compression
                     throw new InvalidOperationException("InitializationState != " + requiredState.ToString());
             }
 
-            private void EnsureNativeHandleInitialized(ErrorCode zlibErrorCode, string zlibErrorContext)
+            private unsafe void EnsureNativeHandleInitialized(ErrorCode zlibErrorCode, string zlibErrorContext)
             {
                 Debug.Assert(zlibErrorContext is "deflateInit2_" or "inflateInit2_");
 
                 if (zlibErrorCode is not ErrorCode.Ok)
                 {
-                    string zlibErrorMessage = GetErrorMessage();
-                    string exceptionMessage = zlibErrorCode switch
-                    {
-                        // Not enough memory
-                        ErrorCode.MemError => SR.ZLibErrorNotEnoughMemory,
-
-                        // zlib library is incompatible with the version assumed
-                        ErrorCode.VersionError => SR.ZLibErrorVersionMismatch,
-
-                        // Parameters are invalid
-                        ErrorCode.StreamError => SR.ZLibErrorIncorrectInitParameters,
-
-                        _ => SR.Format(SR.ZLibErrorUnexpected, (int)zlibErrorCode)
-                    };
-
-                    throw new ZLibException(exceptionMessage, zlibErrorContext, (int)zlibErrorCode, zlibErrorMessage);
+                    ThrowInitializationError(zlibErrorCode, zlibErrorContext, _zStream.msg);
                 }
             }
 
