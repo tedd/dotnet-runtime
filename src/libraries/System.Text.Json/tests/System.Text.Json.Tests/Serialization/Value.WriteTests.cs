@@ -58,6 +58,22 @@ namespace System.Text.Json.Serialization.Tests
             }
         }
 
+        [Theory]
+        [InlineData(128 * 1024 - 1)]
+        [InlineData(128 * 1024)]
+        [InlineData(128 * 1024 + 1)]
+        public static void SerializeToUtf8Bytes_LargeString_CopiesAllWrittenBytes(int byteCount)
+        {
+            const string Suffix = "\n\u00E9";
+            const string EscapedSuffix = "\\n\\u00E9";
+            string prefix = new string('a', byteCount - EscapedSuffix.Length - 2);
+            string value = prefix + Suffix;
+            byte[] expected = Encoding.UTF8.GetBytes("\"" + prefix + EscapedSuffix + "\"");
+
+            Assert.Equal(expected, JsonSerializer.SerializeToUtf8Bytes(value));
+            Assert.Equal(expected, JsonSerializer.SerializeToUtf8Bytes((object)value, typeof(string)));
+        }
+
         [Fact]
         public static void WritePrimitives()
         {
