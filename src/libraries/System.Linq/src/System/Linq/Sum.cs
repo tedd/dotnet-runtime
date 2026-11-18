@@ -192,11 +192,25 @@ namespace System.Linq
             }
 
             TAccumulator sum = TAccumulator.Zero;
-            foreach (TSource? value in source)
+            if (source.TryGetSpan(out ReadOnlySpan<TSource?> span))
             {
-                if (value is not null)
+                foreach (TSource? value in span)
                 {
-                    checked { sum += TAccumulator.CreateChecked(value.GetValueOrDefault()); }
+                    // Adding zero for nulls is faster for primitive types. Skip the cost of decimal addition for nulls.
+                    if (typeof(TSource).IsPrimitive || value is not null)
+                    {
+                        checked { sum += TAccumulator.CreateChecked(value.GetValueOrDefault()); }
+                    }
+                }
+            }
+            else
+            {
+                foreach (TSource? value in source)
+                {
+                    if (value is not null)
+                    {
+                        checked { sum += TAccumulator.CreateChecked(value.GetValueOrDefault()); }
+                    }
                 }
             }
 
